@@ -1,23 +1,519 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iframe Toàn Màn Hình</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-    </style>
-</head>
-<body>
-    <iframe src="https://chatgpt.com" allowfullscreen></iframe> 
-</body>
-</html>
+"use client";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+// A clean, dependency-light recreation of the provided Glowing Home 03 page
+// using React + TailwindCSS in one file. Drop this into a Next.js page or any
+// React app. Replace image URLs with your assets and wire up real product data
+// or CMS later.
+
+// ----------------------------- Helpers -----------------------------
+function classNames(...arr) {
+  return arr.filter(Boolean).join(" ");
+}
+
+function StarRating({ value = 5, outOf = 5 }) {
+  const filled = Math.round(value);
+  return (
+    <div className="flex items-center justify-center text-yellow-500" aria-label={`Rated ${value} out of ${outOf}`}>
+      {Array.from({ length: outOf }, (_, i) => (
+        <span key={i} className={classNames("text-sm", i < filled ? "opacity-100" : "opacity-20")}>★</span>
+      ))}
+    </div>
+  );
+}
+
+function Price({ price, salePrice }) {
+  return (
+    <div className="mt-2 text-center">
+      {salePrice ? (
+        <div className="space-x-2">
+          <span className="line-through text-gray-400">${price.toFixed(2)}</span>
+          <span className="font-semibold">${salePrice.toFixed(2)}</span>
+        </div>
+      ) : (
+        <span className="font-semibold">${price.toFixed(2)}</span>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------- Data -----------------------------
+const CATEGORIES = [
+  { name: "Moisturizers", count: 12, image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?q=80&w=1200&auto=format&fit=crop" },
+  { name: "Toners", count: 12, image: "https://images.unsplash.com/photo-1585238342028-4bbc9b261a78?q=80&w=1200&auto=format&fit=crop" },
+  { name: "Masks", count: 12, image: "https://images.unsplash.com/photo-1498842812179-c81beecf902c?q=80&w=1200&auto=format&fit=crop" },
+  { name: "Kits", count: 12, image: "https://images.unsplash.com/photo-1585386959984-a4155223168f?q=80&w=1200&auto=format&fit=crop" },
+  { name: "Serum", count: 12, image: "https://images.unsplash.com/photo-1608248597279-69a3d788f2ec?q=80&w=1200&auto=format&fit=crop" },
+  { name: "Oil Cleansers", count: 12, image: "https://images.unsplash.com/photo-1582092726310-5c6f3c2173f4?q=80&w=1200&auto=format&fit=crop" },
+];
+
+const PRODUCTS = {
+  "Best Sellers": [
+    { id: 1, title: "Shield Spray", priceMin: 30, priceMax: 55, rating: 5, image: "https://images.unsplash.com/photo-1571782742478-0816a4773a10?q=80&w=1200&auto=format&fit=crop" },
+    { id: 2, title: "Enriched Duo", priceMin: 18, priceMax: 90, rating: 5, image: "https://images.unsplash.com/photo-1619451427882-6aaadedf79ba?q=80&w=1200&auto=format&fit=crop" },
+    { id: 3, title: "Detangling Comb", price: 2, compareAt: 3, rating: 4.7, image: "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?q=80&w=1200&auto=format&fit=crop" },
+    { id: 4, title: "Enriched Hand Wash", price: 90, rating: 5, image: "https://images.unsplash.com/photo-1603714228688-c8b9e181c049?q=80&w=1200&auto=format&fit=crop" },
+    { id: 5, title: "Travel Case Set", price: 18, rating: 5, image: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=1200&auto=format&fit=crop" },
+    { id: 6, title: "Shield Shampoo", price: 45, rating: 5, image: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa914?q=80&w=1200&auto=format&fit=crop" },
+    { id: 7, title: "Getaway Case Set", price: 18, compareAt: 20, rating: 5, image: "https://images.unsplash.com/photo-1512499617640-c2f999098c83?q=80&w=1200&auto=format&fit=crop" },
+    { id: 8, title: "Hand & Body Wash", price: 23, compareAt: 25, rating: 5, image: "https://images.unsplash.com/photo-1600959907703-c85b3d228b94?q=80&w=1200&auto=format&fit=crop" },
+  ],
+  "New Arrivals": [
+    { id: 9, title: "Vitamin C Serum", price: 39, rating: 4.8, image: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa914?q=80&w=1200&auto=format&fit=crop" },
+    { id: 10, title: "Hydrating Toner", price: 22, rating: 4.9, image: "https://images.unsplash.com/photo-1627398242454-45a1465c2479?q=80&w=1200&auto=format&fit=crop" },
+    { id: 11, title: "Daily SPF 50", price: 28, rating: 5, image: "https://images.unsplash.com/photo-1585238342028-4bbc9b261a78?q=80&w=1200&auto=format&fit=crop" },
+    { id: 12, title: "Gentle Cleanser", price: 19, rating: 4.7, image: "https://images.unsplash.com/photo-1603714228688-c8b9e181c049?q=80&w=1200&auto=format&fit=crop" },
+  ],
+  Sale: [
+    { id: 13, title: "Polishing Treatment", price: 29, compareAt: 40, rating: 4.6, image: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=1200&auto=format&fit=crop" },
+    { id: 14, title: "Night Repair Cream", price: 35, compareAt: 48, rating: 4.9, image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=1200&auto=format&fit=crop" },
+  ],
+};
+
+const TESTIMONIALS = [
+  {
+    quote:
+      "Millions of combinations — you get a totally unique routine exactly the way you want it.",
+  },
+  {
+    quote:
+      "Great tags! Light weight and gorgeous colors. My pup doesn’t even notice it’s on.",
+  },
+  { quote: "Amazing product. My skin feels plump and healthy. Highly recommend!" },
+];
+
+// ----------------------------- Small Components -----------------------------
+function SectionHeading({ overline, title, description, center = true }) {
+  return (
+    <div className={classNames("max-w-2xl", center ? "mx-auto text-center" : "")}> 
+      {overline && (
+        <p className="uppercase tracking-wider text-xs font-semibold text-rose-500">{overline}</p>
+      )}
+      <h2 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-semibold text-gray-900">{title}</h2>
+      {description && (
+        <p className="mt-2 text-gray-500">{description}</p>
+      )}
+    </div>
+  );
+}
+
+function CategoryCard({ item }) {
+  return (
+    <div className="group rounded-2xl overflow-hidden shadow-sm ring-1 ring-gray-200 bg-white">
+      <div className="aspect-[1/1] w-full overflow-hidden">
+        <img
+          src={item.image}
+          alt={item.name}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+      </div>
+      <div className="p-4">
+        <h3 className="text-lg font-semibold text-gray-900">
+          {item.name}
+          <sup className="ml-1 text-sm text-gray-400 align-super">{item.count}</sup>
+        </h3>
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({ product }) {
+  const onSale = product.compareAt && product.compareAt > product.price;
+  return (
+    <div className="group rounded-2xl overflow-hidden ring-1 ring-gray-200 bg-white shadow-sm flex flex-col">
+      <div className="relative overflow-hidden">
+        {onSale && (
+          <span className="absolute left-3 top-3 z-10 rounded-full bg-rose-600/90 px-2 py-1 text-xs font-semibold text-white">
+            -{Math.round(((product.compareAt - product.price) / product.compareAt) * 100)}%
+          </span>
+        )}
+        <div className="aspect-[3/4] w-full bg-gray-100 overflow-hidden">
+          <img
+            src={product.image}
+            alt={product.title}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        </div>
+      </div>
+      <div className="p-4 grow flex flex-col">
+        <div className="text-center">
+          {product.priceMin && product.priceMax ? (
+            <div className="text-sm"><span>${product.priceMin.toFixed(2)}</span> – <span>${product.priceMax.toFixed(2)}</span></div>
+          ) : (
+            <Price price={product.price} salePrice={onSale ? product.price : undefined} />
+          )}
+        </div>
+        <h3 className="mt-1 text-center text-base font-semibold text-gray-900">{product.title}</h3>
+        <div className="mt-1">
+          <StarRating value={product.rating || 5} />
+        </div>
+        <div className="mt-3 flex justify-center gap-2">
+          <button className="rounded-full border px-4 py-2 text-sm hover:bg-gray-50">Quick view</button>
+          <button className="rounded-full bg-gray-900 px-4 py-2 text-sm text-white hover:bg-black">Add to cart</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BannerCard({ title, cta, image, delay = 0 }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl ring-1 ring-gray-200 bg-white shadow-sm"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="h-56 sm:h-64 md:h-72 w-full overflow-hidden">
+        <img src={image} alt={title} className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+        <h4 className="text-xl font-semibold drop-shadow">{title}</h4>
+        <button className="mt-2 inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline">
+          {cta}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+            <path d="M13.5 4.5l6 6-6 6M3 12h16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function useCountdown(target) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = Math.max(0, target.getTime() - now.getTime());
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+  return { days, hours, minutes, seconds };
+}
+
+function CountdownTimer({ target }) {
+  const { days, hours, minutes, seconds } = useCountdown(target);
+  const Item = ({ label, value }) => (
+    <div className="rounded-2xl border px-5 py-4 text-center min-w-[80px]">
+      <div className="text-3xl font-semibold tabular-nums">{value.toString().padStart(2, "0")}</div>
+      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-2 sm:gap-3">
+      <Item label="Days" value={days} />
+      <div className="opacity-50 text-xl">:</div>
+      <Item label="Hours" value={hours} />
+      <div className="opacity-50 text-xl">:</div>
+      <Item label="Mins" value={minutes} />
+      <div className="opacity-50 text-xl">:</div>
+      <Item label="Secs" value={seconds} />
+    </div>
+  );
+}
+
+function TestimonialSlider({ items }) {
+  const [index, setIndex] = useState(0);
+  const len = items.length;
+  const next = () => setIndex((i) => (i + 1) % len);
+  const prev = () => setIndex((i) => (i - 1 + len) % len);
+  const timerRef = useRef(null);
+  useEffect(() => {
+    timerRef.current = setInterval(next, 4000);
+    return () => clearInterval(timerRef.current);
+  }, []);
+  return (
+    <div className="relative">
+      <div className="overflow-hidden">
+        <div
+          className="flex transition-transform duration-500"
+          style={{ transform: `translateX(-${index * 100}%)` }}
+        >
+          {items.map((t, i) => (
+            <div key={i} className="min-w-full px-4">
+              <blockquote className="rounded-2xl bg-white ring-1 ring-gray-200 shadow-sm p-8 md:p-12 text-center text-lg md:text-xl font-medium text-gray-800">
+                “{t.quote}”
+              </blockquote>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-center gap-2">
+        {items.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setIndex(i)}
+            className={classNames(
+              "h-2 w-2 rounded-full",
+              i === index ? "bg-gray-900" : "bg-gray-300"
+            )}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
+      <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2">
+        <button onClick={prev} className="rounded-full bg-white/80 hover:bg-white p-2 ring-1 ring-gray-200 shadow" aria-label="Previous">
+          ‹
+        </button>
+        <button onClick={next} className="rounded-full bg-white/80 hover:bg-white p-2 ring-1 ring-gray-200 shadow" aria-label="Next">
+          ›
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Header() {
+  return (
+    <header className="sticky top-0 z-40 backdrop-blur bg-white/80 border-b">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex h-16 items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <button className="md:hidden rounded-full p-2 hover:bg-gray-100" aria-label="Open Menu">☰</button>
+            <a href="#" className="font-semibold text-xl tracking-tight">Glowing</a>
+          </div>
+          <nav className="hidden md:flex items-center gap-6 text-sm">
+            {[
+              ["Home", "#hero"],
+              ["Elements", "#elements"],
+              ["Shop", "#shop"],
+              ["Blog", "#blog"],
+              ["Pages", "#pages"],
+            ].map(([label, href]) => (
+              <a key={label} href={href} className="hover:text-gray-900 text-gray-600">
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                <circle cx="11" cy="11" r="7" strokeWidth="1.5" />
+                <path d="M20 20l-3.5-3.5" strokeWidth="1.5" />
+              </svg>
+              <input placeholder="Search products" className="w-44 outline-none text-sm" />
+            </div>
+            <button className="rounded-full p-2 hover:bg-gray-100" aria-label="Account">👤</button>
+            <button className="rounded-full p-2 hover:bg-gray-100" aria-label="Wishlist">♡</button>
+            <button className="rounded-full p-2 hover:bg-gray-100" aria-label="Cart">🛒</button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-16 border-t bg-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="py-12 grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div>
+            <h3 className="text-2xl font-semibold">Care for Your Skin, Care for Your Beauty</h3>
+            <p className="mt-3 text-gray-600">Give your inbox some love with new products, tips & more.</p>
+            <form className="mt-4 flex gap-2">
+              <input type="email" required placeholder="Enter your email" className="w-full rounded-xl border px-4 py-2" />
+              <button className="rounded-xl bg-gray-900 px-4 py-2 text-white">Subscribe</button>
+            </form>
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold">Company</h4>
+            <ul className="mt-3 space-y-2 text-gray-600">
+              <li><a href="#">About us</a></li>
+              <li><a href="#">Careers</a></li>
+              <li><a href="#">Store Locations</a></li>
+              <li><a href="#">Our Blog</a></li>
+              <li><a href="#">Reviews</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold">Information</h4>
+            <ul className="mt-3 space-y-2 text-gray-600">
+              <li><a href="#">Start a Return</a></li>
+              <li><a href="#">Contact Us</a></li>
+              <li><a href="#">Shipping FAQ</a></li>
+              <li><a href="#">Terms & Conditions</a></li>
+              <li><a href="#">Privacy Policy</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="py-6 border-t flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div>© Glowing {new Date().getFullYear()}</div>
+          <div className="flex items-center gap-4">
+            <span>Twitter</span>
+            <span>Facebook</span>
+            <span>Instagram</span>
+            <span>YouTube</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ----------------------------- Page -----------------------------
+export default function BeautyShopLanding() {
+  const [tab, setTab] = useState("Best Sellers");
+  const tabs = Object.keys(PRODUCTS);
+  const visibleProducts = PRODUCTS[tab] || [];
+  const countdownTarget = useMemo(() => {
+    // Set your own end date/time here
+    return new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days from now
+  }, []);
+
+  return (
+    <div className="bg-gradient-to-b from-white to-rose-50/40 text-gray-900">
+      <Header />
+
+      {/* Hero */}
+      <section id="hero" className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center py-12 md:py-16">
+          <div>
+            <p className="uppercase tracking-widest text-xs font-semibold text-rose-500">The Perfect Skincare</p>
+            <h1 className="mt-3 text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight">Care for Your Skin, Care for Your Beauty</h1>
+            <p className="mt-4 text-gray-600 max-w-prose">Made using clean, non‑toxic ingredients, our products are designed for everyone.</p>
+            <div className="mt-6 flex items-center gap-3">
+              <a href="#shop" className="rounded-full bg-rose-600 px-6 py-3 text-white font-medium hover:bg-rose-700">Shop now</a>
+              <a href="#categories" className="rounded-full border px-6 py-3 font-medium hover:bg-gray-50">Browse categories</a>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="rounded-[2rem] overflow-hidden ring-1 ring-gray-200 shadow-lg">
+              <img
+                src="https://images.unsplash.com/photo-1619451427882-6aaadedf79ba?q=80&w=1600&auto=format&fit=crop"
+                alt="Hero"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories */}
+      <section id="categories" className="mx-auto max-w-7xl px-4 sm:px-6 mt-6">
+        <SectionHeading title="Our Picks for You" description="Our products are designed for everyone." />
+        <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {CATEGORIES.map((c) => (
+            <CategoryCard key={c.name} item={c} />
+          ))}
+        </div>
+      </section>
+
+      {/* Banners */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <BannerCard
+            title="Autumn Skincare"
+            cta="Discover now"
+            image="https://images.unsplash.com/photo-1608248597279-69a3d788f2ec?q=80&w=1600&auto=format&fit=crop"
+          />
+          <BannerCard
+            title="Anti-aging Cream"
+            cta="Buy 1 get 1"
+            image="https://images.unsplash.com/photo-1505577058444-a3dab90d4253?q=80&w=1600&auto=format&fit=crop"
+            delay={150}
+          />
+          <BannerCard
+            title="Sale Up To 40% Off"
+            cta="Shop Sale"
+            image="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=1600&auto=format&fit=crop"
+            delay={300}
+          />
+        </div>
+      </section>
+
+      {/* Products */}
+      <section id="shop" className="mx-auto max-w-7xl px-4 sm:px-6 mt-16">
+        <div className="flex flex-col items-center">
+          <div className="w-full">
+            <div className="flex flex-wrap justify-center gap-2">
+              {tabs.map((t) => (
+                <button
+                  key={t}
+                  className={classNames(
+                    "rounded-full px-5 py-2 text-sm ring-1 ring-gray-200",
+                    t === tab ? "bg-gray-900 text-white" : "bg-white text-gray-700 hover:bg-gray-50"
+                  )}
+                  onClick={() => setTab(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 w-full">
+            {visibleProducts.map((p) => (
+              <ProductCard key={p.id} product={{
+                title: p.title,
+                price: p.price ?? p.priceMin,
+                compareAt: p.compareAt,
+                priceMin: p.priceMin,
+                priceMax: p.priceMax,
+                rating: p.rating,
+                image: p.image,
+              }} />
+            ))}
+          </div>
+          <a href="#" className="mt-8 rounded-full border px-6 py-2 text-sm hover:bg-gray-50">Shop all products</a>
+        </div>
+      </section>
+
+      {/* Countdown Offer */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center rounded-[2rem] ring-1 ring-gray-200 bg-white p-6 md:p-10">
+          <div className="overflow-hidden rounded-2xl">
+            <img
+              src="https://images.unsplash.com/photo-1585386959984-a4155223168f?q=80&w=1600&auto=format&fit=crop"
+              alt="Offer"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div>
+            <span className="inline-block rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">-20%</span>
+            <SectionHeading overline="Special offer" title="Save on Sets" description="Made using clean, non-toxic ingredients, our products are designed for everyone." center={false} />
+            <div className="mt-4">
+              <CountdownTimer target={countdownTarget} />
+            </div>
+            <div className="mt-6">
+              <a href="#" className="rounded-full bg-rose-600 px-6 py-3 text-white font-medium hover:bg-rose-700">get only $39.00</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="mx-auto max-w-5xl px-4 sm:px-6 mt-20">
+        <TestimonialSlider items={TESTIMONIALS} />
+      </section>
+
+      {/* Video CTA */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 mt-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div>
+            <SectionHeading overline="Special offer" title="Beauty Inspired by Real Life" description="Made using clean, non-toxic ingredients, our products are designed for everyone." center={false} />
+            <div className="mt-6">
+              <a href="#" className="rounded-full border px-6 py-3 font-medium hover:bg-gray-50">discover now</a>
+            </div>
+          </div>
+          <div className="relative overflow-hidden rounded-[2rem] ring-1 ring-gray-200">
+            <img src="https://images.unsplash.com/photo-1511405946472-a37e3b5ccd47?q=80&w=1600&auto=format&fit=crop" alt="Video preview" className="h-full w-full object-cover" />
+            <a
+              href="https://www.youtube.com/watch?v=XHOmBV4js_E"
+              target="_blank"
+              rel="noreferrer"
+              className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition"
+            >
+              <button className="inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-3 text-sm font-semibold shadow">
+                ▶ Play Video
+              </button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </div>
+  );
+}
