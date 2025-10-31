@@ -1,0 +1,7 @@
+# HTTrack Website Copier Cookie File
+# This file format is compatible with Netscape cookies
+glowing.g5plus.net	TRUE	/elementor/	FALSE	1999999999	woocommerce_items_in_cart	1
+glowing.g5plus.net	TRUE	/elementor/	FALSE	1999999999	wp_woocommerce_session_c0dfb47fc75d128194c1b259270d95d1	t_1cf2b50f8a9d8084915bac0b24fe28%7C%7C1761747528%7C%7C1761743928%7C%7C8306ac5ffdbc4ac9c5d2de6575af3f13
+glowing.g5plus.net	TRUE	/elementor/	FALSE	1999999999	woocommerce_cart_hash	40da553f51631e04f47c5b7944c574fe
+.w3.org	TRUE	/	FALSE	1999999999	__cf_bm	ML.E6fLW991fd3BvnFFyq2DDt7ibJ7xTqp4N3vWHJ3I-1761574732-1.0.1.1-VDv5BEEFtaUM1RB0sxrtj2dwNwSL5FbTzXZa8_3hS57hFQSm_rDe1pFfdwj5zW5Fcz1NVHWHh.iSEsaiX1I9axHgAEbRGPCOUeq3N9TUzy0
+
